@@ -1,0 +1,52 @@
+{
+  "name": "swaglabs-uiapi-bdd-pw-ts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "bddgen": "bddgen",
+    "bdd:fresh": "rimraf .features-gen && bddgen && playwright test",
+    "pw:list": "npm run bddgen && playwright test --list",
+    "pw:test": "npm run bddgen && playwright test",
+    "pw:inventory": "npm run bddgen && playwright test --grep \"@inventory\"",
+    "clean:bdd": "rimraf .features-gen src/features/**/*.feature.spec.* dist test-results playwright-report",
+    "pw:api": "npm run bddgen && playwright test --grep \"@api\"",
+    "test": "npm run pw:test",
+    "pw:smoke": "npm run bddgen && playwright test --grep \"@smoke\"",
+    "pw:ui": "npm run bddgen && playwright test --grep \"@ui\"",
+    "pw:regression": "npm run bddgen && playwright test --grep \"@regression\"",
+    "pw:login": "npm run bddgen && playwright test --grep \"@login\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@faker-js/faker": "^10.3.0",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^20.19.33",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
+    "@typescript-eslint/eslint-plugin": "^8.56.0",
+    "@typescript-eslint/parser": "^8.56.0",
+    "allure-commandline": "^2.36.0",
+    "cucumber-html-reporter": "^6.0.0",
+    "dotenv": "^17.3.1",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^6.15.0",
+    "eslint-plugin-prettier": "^2.7.0",
+    "pixelmatch": "^7.1.0",
+    "playwright-bdd": "^8.4.2",
+    "pngjs": "^7.0.0",
+    "prettier": "^3.8.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4",
+    "uuid": "^13.0.0",
+    "winston": "^3.19.0"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
+    "exceljs": "^4.4.0"
+  }
+}

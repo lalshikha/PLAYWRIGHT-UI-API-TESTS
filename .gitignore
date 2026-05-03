@@ -1,0 +1,43 @@
+# dependencies
+node_modules/
+
+# environment files
+env/*.env
+.env
+.env.*
+
+# logs
+logs/
+*.log
+
+# generated BDD specs
+.features-gen/
+
+# Playwright artifacts
+playwright-report/
+test-results/
+blob-report/
+
+# reports
+reports/
+*.xml
+
+# screenshots and visual artifacts
+screenshots/test.png
+screenshots/visual/actual/
+screenshots/visual/diff/
+
+# videos / traces
+videos/
+trace/
+traces/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# build output
+dist/
+coverage/

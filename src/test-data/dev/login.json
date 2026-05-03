@@ -1,0 +1,10 @@
+{
+  "TCId-Login001": {
+    "user1": "standard_user",
+    "user2": "visual_user",
+    "password": "secret_sauce"
+  },
+  "TCId-Login002": {
+    "password": "secret_sauce"
+  }
+}

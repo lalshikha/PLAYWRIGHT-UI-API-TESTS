@@ -1,0 +1,192 @@
+flowchart LR
+  %% =========================================
+  %% 1) Run pipeline
+  %% =========================================
+  A["package.json\nnpx bddgen; npx playwright test"] --> B["playwright.config.ts\ndefineBddConfig(paths+require)\ntimeouts/use/reporter/projects"]
+  B --> GEN["playwright-bdd bddgen\nloads: features + require globs"]
+  GEN --> SPEC[".features-gen/**\ngenerated *.spec.js"]
+  SPEC --> RUN["@playwright/test runner\nexecutes generated specs"]
+
+  %% =========================================
+  %% 2) Inputs bddgen reads
+  %% =========================================
+  FEAT["features/**\nui/login.feature etc\ntags: @ui @api @TCId-xxx"] --> GEN
+  FIX["fixtures/Fixtures.ts\nbase.extend<AppFixtures>({...})\nexport Given/When/Then = createBdd(test)"] --> GEN
+
+  %% =========================================
+  %% 3) Fixtures (EXACT)
+  %% =========================================
+  subgraph FX["Fixtures available in step function 1st arg"]
+    FX_page["page (Playwright built-in)"]
+    FX_login["loginPage = new LoginPage(page)"]
+    FX_inv["inventoryPage = new InventoryPage(page)"]
+    FX_common["commonPage = new CommonPage(page)"]
+    FX_apiCtx["apiContext = request.newContext({ baseURL })"]
+    FX_apiSvc["apiService = new ApiService(apiContext)"]
+  end
+
+  FIX --> FX_login
+  FIX --> FX_inv
+  FIX --> FX_common
+  FIX --> FX_apiCtx
+  FIX --> FX_apiSvc
+
+  %% =========================================
+  %% 4) Step files (EXACT)
+  %% =========================================
+  subgraph STEPS["step-definitions/**"]
+    S_API["functional/apiSteps.ts"]
+    S_COMMON["shared/commonSteps.ts"]
+    S_UI["ui/uiSteps.ts"]
+    S_LOGIN["ui/loginSteps.ts"]
+    S_DATA["ui/dataUtilSteps.ts"]
+  end
+
+  S_API --> GEN
+  S_COMMON --> GEN
+  S_UI --> GEN
+  S_LOGIN --> GEN
+  S_DATA --> GEN
+
+  S_API -->|"imports Given/When/Then"| FIX
+  S_COMMON -->|"imports Given/When/Then"| FIX
+  S_UI -->|"imports Given/When/Then"| FIX
+  S_LOGIN -->|"imports When/Then"| FIX
+  S_DATA -->|"imports Given/When/Then"| FIX
+
+  %% =========================================
+  %% 5) Pages + Config + Utils + Services
+  %% =========================================
+  subgraph POM["pages/** (POM)"]
+    BP["BasePage.ts\ngetByKey(key) + getByDataTest(...) + logger + page"]
+    LP["LoginPage.ts"]
+    CP["CommonPage.ts"]
+    IP["InventoryPage.ts"]
+  end
+
+  subgraph CFG["src/config/**"]
+    LOC["src/config/config_locators.ts\nexports: L + LocatorKey\nkey -> selector mapping"]
+  end
+
+  subgraph UTILS["utils/**"]
+    TD["utils/testData.ts\ntestUsers + saucedemoUrl"]
+    DU["utils/dataUtils.ts"]
+    LOG["utils/logger.ts"]
+    VC["utils/visualCompare.ts"]
+  end
+
+  subgraph SVC["services/**"]
+    AS["services/ApiService.ts"]
+  end
+
+  %% fixture construction
+  FX_login --> LP
+  FX_common --> CP
+  FX_inv --> IP
+
+  %% inheritance
+  LP -->|"extends"| BP
+  CP -->|"extends"| BP
+  IP -->|"extends"| BP
+
+  %% BasePage key lookup -> config_locators
+  BP -->|"getByKey(LocatorKey)"| LOC
+
+  %% shared deps
+  LP -->|"reads users/url"| TD
+  CP -->|"visual compare helpers"| VC
+  LP -->|"logs"| LOG
+  CP -->|"logs"| LOG
+  BP -->|"logs"| LOG
+  IP -->|"logs"| LOG
+
+  S_DATA -->|"uses"| DU
+
+  %% API chain
+  S_API -->|"uses fixture"| FX_apiSvc
+  FX_apiSvc --> AS
+  AS -->|"uses"| FX_apiCtx
+  FX_apiCtx -->|"created by"| REQ["request.newContext({ baseURL: API_BASE_URL || APP_URL })"]
+  FX_apiCtx -->|"disposed by"| DISP["apiContext.dispose()"]
+
+  %% =========================================
+  %% 6) EXACT call chains (Login + Visual)
+  %% =========================================
+
+  %% --- CommonSteps: open app
+  S_COMMON -. "Given user opens saucedemo application" .-> GOTO["page.goto(APP_URL ?? saucedemoUrl)"]
+  GOTO --> FX_page
+  GOTO --> TD
+
+  %% --- LoginSteps positive: step -> loginAs -> login -> getByKey locators
+  S_LOGIN -. "When user performs UI login with {word} credentials" .-> L_AS["loginPage.loginAs(userType)"]
+  L_AS --> LP
+  L_AS -->|"testUsers[userType]"| TD
+  L_AS --> L_LOGIN["loginPage.login(username,password)"]
+  L_LOGIN --> LP
+  L_LOGIN --> FX_page
+
+  %% getters inside LoginPage
+  LP -. "usernameInput getter" .-> K1["getByKey('login_username')"]
+  LP -. "passwordInput getter" .-> K2["getByKey('login_password')"]
+  LP -. "loginBtn getter" .-> K3["getByKey('login_loginButton')"]
+  LP -. "errorBanner getter" .-> K4["getByKey('login_error')"]
+
+  K1 --> BP
+  K2 --> BP
+  K3 --> BP
+  K4 --> BP
+  BP --> LOC
+
+  L_LOGIN -->|"uses"| K1
+  L_LOGIN -->|"uses"| K2
+  L_LOGIN -->|"uses"| K3
+
+  %% --- Login success assert (exact)
+  S_LOGIN -. "Then UI login should be successful" .-> L_OK["loginPage.assertLoginSuccess()"]
+  L_OK --> LP
+  L_OK --> OK_LOC["getByKey('inventory_container') -> expect visible"]
+  OK_LOC --> BP
+  OK_LOC --> LOC
+
+  %% --- Negative step path (current step-def uses raw data-test locators)
+  S_LOGIN -. "When user attempts UI login with username {string} and password {string}" .-> NEG_DOM["page.locator('[data-test=username|password|login-button]')\nfill + click"]
+  NEG_DOM --> FX_page
+
+  S_LOGIN -. "Then UI login should fail with error {string}" .-> NEG_ERR["page.locator('[data-test=error]')\nassert visible + toHaveText"]
+  NEG_ERR --> FX_page
+
+  %% --- UI Visual validations via CommonPage (exact methods)
+  S_UI -. "Then visual validation passes for login page" .-> V_PAGE["commonPage.assertVisualPage(pageName)"]
+  V_PAGE --> CP
+  CP --> ENS1["ensurePng('pageUnderTest_<pageName>')"]
+  CP --> PSS["BasePage.assertPageScreenshot(snapshot)"]
+  PSS --> VC
+
+  S_UI -. "Then visual validation passes for username element\n(password/loginbutton)" .-> V_EL["commonPage.assertVisualElement(elementName)"]
+  V_EL --> CP
+  CP --> ENS2["ensurePng('elementUnderTest_<elementName>')"]
+  CP --> MAP["getElementLocator(elementName)\nswitch: username|password|loginbutton"]
+  MAP --> DT1["getByDataTest('username')"]
+  MAP --> DT2["getByDataTest('password')"]
+  MAP --> DT3["getByDataTest('login-button')"]
+  DT1 --> BP
+  DT2 --> BP
+  DT3 --> BP
+  CP --> ESS["BasePage.assertElementScreenshot(locator,snapshot)"]
+  ESS --> VC
+
+  %% =========================================
+  %% 7) Outputs
+  %% =========================================
+  subgraph OUT["Artifacts"]
+    TR["test-results/**\nscreenshots/traces/attachments"]
+    PR["playwright-report/**\nHTML report"]
+    JR["reports/**\njunit-results.xml"]
+    VS["screenshots/visual/**\nbaseline/actual/diff"]
+  end
+
+  RUN --> TR
+  RUN --> PR
+  RUN --> JR
+  VC --> VS

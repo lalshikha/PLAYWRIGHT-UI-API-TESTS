@@ -1,0 +1,18 @@
+{
+  "TCId-Inv001": {
+    "username": "standard_user",
+    "password": "secret_sauce"
+  },
+  "TCId-Inv002": {
+    "username": "standard_user",
+    "password": "secret_sauce"
+  },
+  "TCId-Inv003": {
+    "username": "standard_user",
+    "password": "secret_sauce"
+  },
+  "TCId-Inv004": {
+    "username": "standard_user",
+    "password": "secret_sauce"
+  }
+}
